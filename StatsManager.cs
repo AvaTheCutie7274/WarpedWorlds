@@ -1,57 +1,55 @@
-﻿namespace HasteEffects;
+namespace HasteEffects;
 
 /// <summary>
-/// Holds a single player stat and its min/max/enabled settings.
+/// Holds a single player stat, including UI and settings
 /// </summary>
 public class StatHolder
 {
-	private readonly float _defaultMin;
-	private readonly float _defaultMax;
-	private readonly bool _defaultEnabled;
+	private readonly HastyCollapsible _hastyCol;
 
-	public StatHolder(Stat stat, float defaultMin, float defaultMax, bool enabled = true)
+	public StatHolder(Stat stat, HastySetting cfg, Unity.Mathematics.float2 defaultMinMax, bool enabled = true)
 	{
 		Stat = stat;
-		_defaultMin = defaultMin;
-		_defaultMax = defaultMax;
-		_defaultEnabled = enabled;
 
-		MinValue = defaultMin;
-		MaxValue = defaultMax;
-		Enabled = enabled;
+		_hastyCol = new HastyCollapsible(cfg, stat.ToString(), $"Settings for <b>{stat}</b>");
+
+		HastyFloatMin = new HastyFloat(_hastyCol, stat.ToString(), "Minimum", new(0, 5, defaultMinMax.x));
+		HastyFloatMax = new HastyFloat(_hastyCol, stat.ToString(), "Maximum", new(0, 5, defaultMinMax.y));
+		HastyBoolEnabled = new HastyBool(_hastyCol, stat.ToString(), "Enable or disable this stat", new("Disabled", "Enabled", enabled));
+		HastyButtonReset = new HastyButton(_hastyCol, "Reset", $"Reset <b>{stat}</b>'s stats", new() { ButtonText = "Reset", OnClicked = Reset });
 	}
 
-	public bool Enabled { get; set; }
+	public HastyBool HastyBoolEnabled { get; private set; }
+	public HastyButton HastyButtonReset { get; private set; }
+	public HastyCollapsible HastyCol => _hastyCol;
+	public HastyFloat HastyFloatMax { get; private set; }
+	public HastyFloat HastyFloatMin { get; private set; }
 
 	public float Max
 	{
 		get
 		{
-			if (MaxValue <= MinValue)
+			if (HastyFloatMax.Value <= HastyFloatMin.Value)
 			{
-				UnityEngine.Debug.LogWarning($"{Stat} max value is less than or equal to min value. Resetting max.");
-				MaxValue = _defaultMax;
+				HastyFloatMax.Reset();
+				return HastyFloatMax.Value;
 			}
-			return MaxValue;
+			return HastyFloatMax.Value;
 		}
 	}
-
-	public float MaxValue { get; set; }
 
 	public float Min
 	{
 		get
 		{
-			if (MinValue >= MaxValue)
+			if (HastyFloatMin.Value >= HastyFloatMax.Value)
 			{
-				UnityEngine.Debug.LogWarning($"{Stat} min value is greater than or equal to max value. Resetting min.");
-				MinValue = _defaultMin;
+				HastyFloatMin.Reset();
+				return HastyFloatMin.Value;
 			}
-			return MinValue;
+			return HastyFloatMin.Value;
 		}
 	}
-
-	public float MinValue { get; set; }
 
 	public string Name => Stat.ToString();
 
@@ -69,19 +67,16 @@ public class StatHolder
 
 	public float RandomVal => UnityEngine.Random.Range(Min, Max);
 
-	public Stat Stat { get; }
+	public Stat Stat { get; private set; }
 
 	public void Reset()
 	{
-		MinValue = _defaultMin;
-		MaxValue = _defaultMax;
-		Enabled = _defaultEnabled;
+		HastyFloatMax.Reset();
+		HastyFloatMin.Reset();
+		HastyBoolEnabled.Reset();
 	}
 }
 
-/// <summary>
-/// All supported player stats.
-/// </summary>
 public enum Stat
 {
 	MaxHealth,
@@ -91,7 +86,6 @@ public enum Stat
 	Drag,
 	Gravity,
 	FastFall,
-	Dashes,
 	Boost,
 	Luck,
 	MaxEnergy,
