@@ -1,98 +1,103 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using UnityEngine;
+
 namespace HasteEffects;
 
-using SettingsLib;
-
 /// <summary>
-/// Holds a single player stat, including UI and settings
+/// Holds a single player stat and its min/max range.
 /// </summary>
 public class StatHolder
 {
-	private readonly HastyCollapsible _hastyCol;
+    private readonly float _defaultMin;
+    private readonly float _defaultMax;
 
-	public StatHolder(Stat stat, HastySetting cfg, Unity.Mathematics.float2 defaultMinMax, bool enabled = true)
-	{
-		Stat = stat;
+    public StatHolder(Stat stat, float defaultMin, float defaultMax)
+    {
+        Stat = stat;
+        _defaultMin = defaultMin;
+        _defaultMax = defaultMax;
 
-		_hastyCol = new HastyCollapsible(cfg, stat.ToString(), $"Settings for <b>{stat}</b>");
+        MinValue = defaultMin;
+        MaxValue = defaultMax;
+    }
 
-		HastyFloatMin = new HastyFloat(_hastyCol, stat.ToString(), "Minimum", new(0, 5, defaultMinMax.x));
-		HastyFloatMax = new HastyFloat(_hastyCol, stat.ToString(), "Maximum", new(0, 5, defaultMinMax.y));
-		HastyBoolEnabled = new HastyBool(_hastyCol, stat.ToString(), "Enable or disable this stat", new("Disabled", "Enabled", enabled));
-		HastyButtonReset = new HastyButton(_hastyCol, "Reset", $"Reset <b>{stat}</b>'s stats", new() { ButtonText = "Reset", OnClicked = Reset });
-	}
+    public Stat Stat { get; }
 
-	public HastyBool HastyBoolEnabled { get; private set; }
-	public HastyButton HastyButtonReset { get; private set; }
-	public HastyCollapsible HastyCol => _hastyCol;
-	public HastyFloat HastyFloatMax { get; private set; }
-	public HastyFloat HastyFloatMin { get; private set; }
+    public string Name => Stat.ToString();
 
-	public float Max
-	{
-		get
-		{
-			if (HastyFloatMax.Value <= HastyFloatMin.Value)
-			{
-				HastyFloatMax.Reset();
-				return HastyFloatMax.Value;
-			}
-			return HastyFloatMax.Value;
-		}
-	}
+    public float MinValue { get; set; }
+    public float MaxValue { get; set; }
 
-	public float Min
-	{
-		get
-		{
-			if (HastyFloatMin.Value >= HastyFloatMax.Value)
-			{
-				HastyFloatMin.Reset();
-				return HastyFloatMin.Value;
-			}
-			return HastyFloatMin.Value;
-		}
-	}
+    public float Min
+    {
+        get
+        {
+            if (MinValue >= MaxValue)
+            {
+                Debug.LogWarning($"{Stat} min value is greater than or equal to max value. Resetting min.");
+                MinValue = _defaultMin;
+            }
 
-	public string Name => Stat.ToString();
+            return MinValue;
+        }
+    }
 
-	public PlayerStat PStat
-	{
-		get
-		{
-			return (PlayerStat)Player.localPlayer.stats.GetType()
-				.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
-				.Where(f => f.FieldType == typeof(PlayerStat))
-				.FirstOrDefault(f => f.Name.Contains(Stat.ToString(), StringComparison.OrdinalIgnoreCase))
-				.GetValue(Player.localPlayer.stats);
-		}
-	}
+    public float Max
+    {
+        get
+        {
+            if (MaxValue <= MinValue)
+            {
+                Debug.LogWarning($"{Stat} max value is less than or equal to min value. Resetting max.");
+                MaxValue = _defaultMax;
+            }
 
-	public float RandomVal => UnityEngine.Random.Range(Min, Max);
+            return MaxValue;
+        }
+    }
 
-	public Stat Stat { get; private set; }
+    public float RandomVal => UnityEngine.Random.Range(Min, Max);
 
-	public void Reset()
-	{
-		HastyFloatMax.Reset();
-		HastyFloatMin.Reset();
-		HastyBoolEnabled.Reset();
-	}
+    public PlayerStat PStat
+    {
+        get
+        {
+            return (PlayerStat)Player.localPlayer.stats
+                .GetType()
+                .GetFields(BindingFlags.Public | BindingFlags.Instance)
+                .Where(f => f.FieldType == typeof(PlayerStat))
+                .First(f => f.Name.Contains(Stat.ToString(), StringComparison.OrdinalIgnoreCase))
+                .GetValue(Player.localPlayer.stats);
+        }
+    }
+
+    public void Reset()
+    {
+        MinValue = _defaultMin;
+        MaxValue = _defaultMax;
+    }
 }
 
+/// <summary>
+/// All supported player stats.
+/// </summary>
 public enum Stat
 {
-	MaxHealth,
-	RunSpeed,
-	AirSpeed,
-	TurnSpeed,
-	Drag,
-	Gravity,
-	FastFall,
-	Boost,
-	Luck,
-	MaxEnergy,
-	SparkMulti,
-	EnergyGain,
-	DamageMulti,
-	PickupRange
+    MaxHealth,
+    RunSpeed,
+    AirSpeed,
+    TurnSpeed,
+    Drag,
+    Gravity,
+    FastFall,
+    Dashes,
+    Boost,
+    Luck,
+    MaxEnergy,
+    SparkMulti,
+    EnergyGain,
+    DamageMulti,
+    PickupRange
 }
