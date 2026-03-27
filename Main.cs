@@ -1,191 +1,192 @@
-﻿namespace HasteEffects;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
-using SettingsLib;
+namespace HasteEffects;
 
 [Landfall.Modding.LandfallPlugin]
 public class HasteEffects
 {
-	private static readonly List<UIStats> stats = new();
-	private static readonly List<ActiveModifier> activeModifiers = new();
+    private static readonly List<UIStats> stats = new();
+    private static readonly List<ActiveModifier> activeModifiers = new();
 
-	private static bool initializedThisRun = false;
-	private static bool sceneHookInstalled = false;
+    private static bool initializedThisRun = false;
+    private static bool sceneHookInstalled = false;
 
-	static HasteEffects()
-	{
-		var menu = new HastySetting("WarpedWorlds");
-		menu.OnConfig += () => new Config(menu);
+    static HasteEffects()
+    {
+        var menu = new HastySetting("HasteEffects");
+        menu.OnConfig += () => new Config(menu);
 
-		InstallSceneHooks();
+        InstallSceneHooks();
 
-		On.Player.Start += (orig, self) =>
-		{
-			orig(self);
+        On.Player.Start += (orig, self) =>
+        {
+            orig(self);
 
-			if (!IsRun || Player.localPlayer == null)
-				return;
+            if (!IsRun || Player.localPlayer == null)
+                return;
 
-			try
-			{
-				if (!initializedThisRun)
-				{
-					activeModifiers.Clear();
-					initializedThisRun = true;
-					UnityEngine.Debug.Log("HasteEffects: run initialized");
-				}
+            try
+            {
+                if (!initializedThisRun)
+                {
+                    activeModifiers.Clear();
+                    initializedThisRun = true;
+                    Debug.Log("HasteEffects: run initialized");
+                }
 
-				AddModifierForFragment();
-				ApplyActiveModifiers();
-				RebuildUI();
-			}
-			catch (System.Exception ex)
-			{
-				UnityEngine.Debug.LogError($"HasteEffects error: {ex}");
-			}
-		};
-	}
+                AddModifierForFragment();
+                ApplyActiveModifiers();
+                RebuildUI();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"HasteEffects error: {ex}");
+            }
+        };
+    }
 
-	private static void InstallSceneHooks()
-	{
-		if (sceneHookInstalled)
-			return;
+    private static void InstallSceneHooks()
+    {
+        if (sceneHookInstalled)
+            return;
 
-		sceneHookInstalled = true;
+        sceneHookInstalled = true;
 
-		UnityEngine.SceneManagement.SceneManager.sceneLoaded += (scene, mode) =>
-		{
-			UnityEngine.Debug.Log($"HasteEffects: sceneLoaded name='{scene.name}' build={scene.buildIndex}");
+        SceneManager.sceneLoaded += (scene, mode) =>
+        {
+            Debug.Log($"HasteEffects: sceneLoaded name='{scene.name}' build={scene.buildIndex}");
 
-			// Clear when returning to places outside a run
-			if (scene.name == "FullHub" || scene.name == "MainMenu")
-			{
-				ClearModifiers();
-			}
-		};
-	}
+            if (scene.name == "FullHub" || scene.name == "MainMenu")
+            {
+                ClearModifiers();
+            }
+        };
+    }
 
+    public static void ForceAddModifier(Stat stat, float value)
+    {
+        try
+        {
+            if (stat == Stat.Dashes)
+            {
+                Debug.Log("HasteEffects DEBUG: Dashes modifier has been removed and cannot be added.");
+                return;
+            }
 
-	public static void ForceAddModifier(Stat stat, float value)
-	{
-		try
-		{
-			if (stat == Stat.Dashes)
-			{
-				UnityEngine.Debug.Log("HasteEffects DEBUG: Dashes modifier has been removed and cannot be added.");
-				return;
-			}
+            var statHolder = Config.statsHolder.FirstOrDefault(s => s.Stat == stat);
+            if (statHolder == null)
+            {
+                Debug.LogError($"HasteEffects: Stat {stat} not found");
+                return;
+            }
 
-			var statHolder = Config.statsHolder.FirstOrDefault(s => s.Stat == stat);
-			if (statHolder == null)
-			{
-				UnityEngine.Debug.LogError($"HasteEffects: Stat {stat} not found");
-				return;
-			}
+            activeModifiers.RemoveAll(m => m.Stat == stat);
+            activeModifiers.Add(new ActiveModifier(stat, value));
 
-			activeModifiers.RemoveAll(m => m.Stat == stat);
+            statHolder.PStat.multiplier = value;
 
-			activeModifiers.Add(new ActiveModifier(stat, value));
+            Debug.Log($"HasteEffects DEBUG: Forced {stat} = {value:0.00}x");
+            UIPopup.Show($"+ {stat}: {value:0.0}x");
 
-			statHolder.PStat.multiplier = value;
+            RebuildUI();
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError($"HasteEffects DEBUG error: {ex}");
+        }
+    }
 
-			UnityEngine.Debug.Log($"HasteEffects DEBUG: Forced {stat} = {value:0.00}x");
+    internal static bool IsRun
+    {
+        get
+        {
+            var curScn = SceneManager.GetActiveScene();
+            return
+                (curScn.name.Contains("challenge", StringComparison.OrdinalIgnoreCase) && Config.ChallengeLevels.Value) ||
+                (curScn.buildIndex == 27 && Config.BossLevels.Value) ||
+                curScn.buildIndex == 7;
+        }
+    }
 
-			UIPopup.Show($"+ {stat}: {value:0.0}x");
+    private static void AddModifierForFragment()
+    {
+        var availableStats = Config.statsHolder
+            .Where(s => s.HastyBoolEnabled.Value)
+            .Where(s => s.Stat != Stat.Dashes)
+            .Where(s => activeModifiers.All(a => a.Stat != s.Stat))
+            .ToList();
 
-			RebuildUI();
-		}
-		catch (System.Exception ex)
-		{
-			UnityEngine.Debug.LogError($"HasteEffects DEBUG error: {ex}");
-		}
-	}
+        if (!availableStats.Any())
+            return;
 
-	internal static bool IsRun
-	{
-		get
-		{
-			var curScn = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-			return
-				(curScn.name.Contains("challenge", System.StringComparison.OrdinalIgnoreCase) && Config.ChallengeLevels.Value) ||
-				(curScn.buildIndex == 27 && Config.BossLevels.Value) ||
-				curScn.buildIndex == 7;
-		}
-	}
+        int count = (int)Config.MaxEffects.Value;
 
-	private static void AddModifierForFragment()
-	{
-		var availableStats = Config.statsHolder
-			.Where(s => s.HastyBoolEnabled.Value)
-			.Where(s => s.Stat != Stat.Dashes)
-			.Where(s => activeModifiers.All(a => a.Stat != s.Stat))
-			.ToList();
+        for (int i = 0; i < count && availableStats.Count > 0; i++)
+        {
+            var stat = availableStats[UnityEngine.Random.Range(0, availableStats.Count)];
+            availableStats.Remove(stat);
 
-		if (!availableStats.Any())
-			return;
+            if (UnityEngine.Random.Range(0f, 1f) <= Config.FailChance.Value)
+                continue;
 
-		int count = (int)Config.MaxEffects.Value;
+            var value = stat.RandomVal;
+            activeModifiers.Add(new ActiveModifier(stat.Stat, value));
 
-		for (int i = 0; i < count && availableStats.Count > 0; i++)
-		{
-			var stat = availableStats[UnityEngine.Random.Range(0, availableStats.Count)];
-			availableStats.Remove(stat);
+            Debug.Log($"HasteEffects: added {stat.Stat} = {value:0.00}x");
+            UIPopup.Show($"+ {stat.Stat}: {value:0.0}x");
+        }
+    }
 
-			if (UnityEngine.Random.Range(0f, 1f) <= Config.FailChance.Value)
-				continue;
+    private static void ApplyActiveModifiers()
+    {
+        foreach (var mod in activeModifiers)
+        {
+            var statHolder = Config.statsHolder.FirstOrDefault(s => s.Stat == mod.Stat);
+            if (statHolder == null)
+                continue;
 
-			var value = stat.RandomVal;
-			activeModifiers.Add(new ActiveModifier(stat.Stat, value));
-			UnityEngine.Debug.Log($"HasteEffects: added {stat.Stat} = {value:0.00}x");
-			UIPopup.Show($"+ {stat.Stat}: {value:0.0}x");
-		}
-	}
+            statHolder.PStat.multiplier = mod.Multiplier;
+            Debug.Log($"HasteEffects: applied {mod.Stat} = {mod.Multiplier:0.00}x");
+        }
+    }
 
-	private static void ApplyActiveModifiers()
-	{
-		foreach (var mod in activeModifiers)
-		{
-			var statHolder = Config.statsHolder.FirstOrDefault(s => s.Stat == mod.Stat);
-			if (statHolder == null)
-				continue;
+    private static void RebuildUI()
+    {
+        stats.ForEach(s => s.Destroy());
+        stats.Clear();
 
-			statHolder.PStat.multiplier = mod.Multiplier;
-			UnityEngine.Debug.Log($"HasteEffects: applied {mod.Stat} = {mod.Multiplier:0.00}x");
-		}
-	}
+        for (int i = 0; i < activeModifiers.Count; i++)
+        {
+            var mod = activeModifiers[i];
+            stats.Add(new UIStats($"{mod.Stat}: {mod.Multiplier:0.0}x", i));
+        }
 
-	private static void RebuildUI()
-	{
-		stats.ForEach(s => s.Destroy());
-		stats.Clear();
+        Debug.Log($"HasteEffects: UI rebuilt with {activeModifiers.Count} modifiers");
+    }
 
-		for (int i = 0; i < activeModifiers.Count; i++)
-		{
-			var mod = activeModifiers[i];
-			stats.Add(new UIStats($"{mod.Stat}: {mod.Multiplier:0.0}x", i));
-		}
+    private static void ClearModifiers()
+    {
+        activeModifiers.Clear();
+        stats.ForEach(s => s.Destroy());
+        stats.Clear();
+        initializedThisRun = false;
 
-		UnityEngine.Debug.Log($"HasteEffects: UI rebuilt with {activeModifiers.Count} modifiers");
-	}
+        Debug.Log("HasteEffects: cleared modifiers");
+    }
 
-	private static void ClearModifiers()
-	{
-		activeModifiers.Clear();
-		stats.ForEach(s => s.Destroy());
-		stats.Clear();
-		initializedThisRun = false;
+    private readonly struct ActiveModifier
+    {
+        public ActiveModifier(Stat stat, float multiplier)
+        {
+            Stat = stat;
+            Multiplier = multiplier;
+        }
 
-		UnityEngine.Debug.Log("HasteEffects: cleared modifiers");
-	}
-
-	private readonly struct ActiveModifier
-	{
-		public ActiveModifier(Stat stat, float multiplier)
-		{
-			Stat = stat;
-			Multiplier = multiplier;
-		}
-
-		public Stat Stat { get; }
-		public float Multiplier { get; }
-	}
+        public Stat Stat { get; }
+        public float Multiplier { get; }
+    }
 }
