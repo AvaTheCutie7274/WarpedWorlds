@@ -34,33 +34,3 @@ public class Config
 	public static HastyFloat MaxEffects { get; private set; } = null!;
 	public static List<StatHolder> statsHolder { get; } = new();
 }
-
-public class SimpleBool
-{
-	private readonly bool _defaultValue;
-
-	public SimpleBool(bool defaultValue)
-	{
-		_defaultValue = defaultValue;
-		Value = defaultValue;
-	}
-
-	public bool Value { get; set; }
-
-	public void Reset() => Value = _defaultValue;
-}
-
-public class SimpleFloat
-{
-	private readonly float _defaultValue;
-
-	public SimpleFloat(float defaultValue)
-	{
-		_defaultValue = defaultValue;
-		Value = defaultValue;
-	}
-
-	public float Value { get; set; }
-
-	public void Reset() => Value = _defaultValue;
-}
