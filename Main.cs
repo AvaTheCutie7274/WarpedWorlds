@@ -1,5 +1,7 @@
 ﻿namespace HasteEffects;
 
+using SettingsLib;
+
 [Landfall.Modding.LandfallPlugin]
 public class HasteEffects
 {
