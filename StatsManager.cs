@@ -1,5 +1,7 @@
 namespace HasteEffects;
 
+using SettingsLib;
+
 /// <summary>
 /// Holds a single player stat, including UI and settings
 /// </summary>
