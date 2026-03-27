@@ -11,7 +11,8 @@ public class HasteEffects
 
 	static HasteEffects()
 	{
-		_ = new Config();
+		var menu = new HastySetting("WarpedWorlds");
+		menu.OnConfig += () => new Config(menu);
 
 		InstallSceneHooks();
 
@@ -112,7 +113,7 @@ public class HasteEffects
 	private static void AddModifierForFragment()
 	{
 		var availableStats = Config.statsHolder
-			.Where(s => s.Enabled)
+			.Where(s => s.HastyBoolEnabled.Value)
 			.Where(s => s.Stat != Stat.Dashes)
 			.Where(s => activeModifiers.All(a => a.Stat != s.Stat))
 			.ToList();
