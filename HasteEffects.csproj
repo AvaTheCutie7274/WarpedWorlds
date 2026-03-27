@@ -38,7 +38,9 @@
 	<ItemGroup>
 		<Reference Include="$(HasteDir)\..\..\workshop\content\1796470\3693237754\0Harmony.dll" Private="false" />
 		<Reference Include="$(HasteDir)\Haste_Data\Managed\*.dll" Private="false" Publicize="true" />
-
+		<Reference Include="SettingsLib">
+    		<HintPath>..\libs\SettingsLib.dll</HintPath>
+ 		</Reference>
 	</ItemGroup>
 
 	<!-- Just builds directly into the 0Harmony path for quicker testing -->
