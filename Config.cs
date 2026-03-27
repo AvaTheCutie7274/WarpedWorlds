@@ -1,114 +1,66 @@
 using System.Collections.Generic;
+using Landfall.Haste;
+using UnityEngine;
+using UnityEngine.Localization;
+using Zorro.Settings;
 
 namespace HasteEffects;
 
-public class Config
+public static class Config
 {
-    public Config(HastySetting cfg)
+    public static List<StatHolder> Stats { get; } = new();
+
+    public static void Initialize()
     {
-        statsHolder.Clear();
+        if (Stats.Count > 0)
+            return;
 
-        new HastyButton(
-            cfg,
-            "Reset",
-            "Reset stat values to their default values",
-            new("Reset", () =>
-            {
-                MaxEffects.Reset();
-                FailChance.Reset();
-                BossLevels.Reset();
-                ChallengeLevels.Reset();
-                statsHolder.ForEach(s => s.Reset());
-            })
-        );
-
-        HastyCollapsible additional = new(cfg, "Additional", "Additional settings");
-
-        MaxEffects = new HastyFloat(
-            additional,
-            "Max Effects",
-            "Maximum number of effects to apply",
-            new(0, 13, 4)
-        );
-
-        FailChance = new HastyFloat(
-            additional,
-            "Fail Chance",
-            "Chance of failing to apply an effect",
-            new(0, 1, 0.15f)
-        );
-
-        BossLevels = new HastyBool(
-            additional,
-            "Boss Levels",
-            "Enable for boss level",
-            new("Disabled", "Enabled", false)
-        );
-
-        ChallengeLevels = new HastyBool(
-            additional,
-            "Challenge Levels",
-            "Enable for challenge levels",
-            new("Disabled", "Enabled")
-        );
-
-        statsHolder.Add(new(Stat.AirSpeed, cfg, new(0.8f, 1.4f)));
-        statsHolder.Add(new(Stat.Boost, cfg, new(0.5f, 2.5f)));
-        statsHolder.Add(new(Stat.DamageMulti, cfg, new(0.25f, 3.85f)));
-        statsHolder.Add(new(Stat.Drag, cfg, new(0.75f, 1.75f)));
-        statsHolder.Add(new(Stat.EnergyGain, cfg, new(0.75f, 2.5f)));
-        statsHolder.Add(new(Stat.FastFall, cfg, new(0.75f, 3.25f)));
-        statsHolder.Add(new(Stat.Gravity, cfg, new(0.5f, 1.5f)));
-        statsHolder.Add(new(Stat.Luck, cfg, new(0.15f, 4.85f)));
-        statsHolder.Add(new(Stat.MaxEnergy, cfg, new(0.5f, 2.5f)));
-        statsHolder.Add(new(Stat.MaxHealth, cfg, new(0.25f, 5f)));
-        statsHolder.Add(new(Stat.PickupRange, cfg, new(0.75f, 3.75f)));
-        statsHolder.Add(new(Stat.RunSpeed, cfg, new(0.75f, 2.5f)));
-        statsHolder.Add(new(Stat.SparkMulti, cfg, new(0.5f, 1.5f)));
-        statsHolder.Add(new(Stat.TurnSpeed, cfg, new(0.5f, 2.5f)));
+        Stats.Add(new StatHolder(Stat.AirSpeed, 0.8f, 1.4f));
+        Stats.Add(new StatHolder(Stat.Boost, 0.5f, 2.5f));
+        Stats.Add(new StatHolder(Stat.DamageMulti, 0.25f, 3.85f));
+        Stats.Add(new StatHolder(Stat.Drag, 0.75f, 1.75f));
+        Stats.Add(new StatHolder(Stat.EnergyGain, 0.75f, 2.5f));
+        Stats.Add(new StatHolder(Stat.FastFall, 0.75f, 3.25f));
+        Stats.Add(new StatHolder(Stat.Gravity, 0.5f, 1.5f));
+        Stats.Add(new StatHolder(Stat.Luck, 0.15f, 4.85f));
+        Stats.Add(new StatHolder(Stat.MaxEnergy, 0.5f, 2.5f));
+        Stats.Add(new StatHolder(Stat.MaxHealth, 0.25f, 5f));
+        Stats.Add(new StatHolder(Stat.PickupRange, 0.75f, 3.75f));
+        Stats.Add(new StatHolder(Stat.RunSpeed, 0.75f, 2.5f));
+        Stats.Add(new StatHolder(Stat.SparkMulti, 0.5f, 1.5f));
+        Stats.Add(new StatHolder(Stat.TurnSpeed, 0.5f, 2.5f));
     }
 
-    public static HastyBool BossLevels { get; private set; } = null!;
-    public static HastyBool ChallengeLevels { get; private set; } = null!;
-    public static HastyFloat FailChance { get; private set; } = null!;
-    public static HastyFloat MaxEffects { get; private set; } = null!;
+    public static int GetMaxEffects()
+    {
+        try
+        {
+            if (GameHandler.Instance == null || GameHandler.Instance.SettingsHandler == null)
+                return 4;
 
-    public static List<StatHolder> statsHolder { get; } = new();
-}﻿namespace HasteEffects;
+            return GameHandler.Instance.SettingsHandler
+                .GetSetting<MaxModifiersSetting>()
+                .Value;
+        }
+        catch
+        {
+            return 4;
+        }
+    }
+}
 
-using SettingsLib;
-
-public class Config
+[HasteSetting]
+public class MaxModifiersSetting : IntSetting, IExposedSetting
 {
-	public Config(HastySetting cfg)
-	{
-		BossLevels = new HastyBool(cfg, "General", "Boss Levels", new("Disabled", "Enabled", false));
-		ChallengeLevels = new HastyBool(cfg, "General", "Challenge Levels", new("Disabled", "Enabled", true));
-		FailChance = new HastyFloat(cfg, "General", "Fail Chance", new(0f, 1f, 0.15f));
-		MaxEffects = new HastyFloat(cfg, "General", "Modifiers Per Fragment", new(1f, 10f, 4f));
+    public string GetCategory() => "HasteEffects";
 
-		if (statsHolder.Count == 0)
-		{
-			statsHolder.Add(new(Stat.AirSpeed, cfg, new Unity.Mathematics.float2(0.8f, 1.4f)));
-			statsHolder.Add(new(Stat.Boost, cfg, new Unity.Mathematics.float2(0.5f, 2.5f)));
-			statsHolder.Add(new(Stat.DamageMulti, cfg, new Unity.Mathematics.float2(0.25f, 3.85f)));
-			statsHolder.Add(new(Stat.Drag, cfg, new Unity.Mathematics.float2(0.75f, 1.75f)));
-			statsHolder.Add(new(Stat.EnergyGain, cfg, new Unity.Mathematics.float2(0.75f, 2.5f)));
-			statsHolder.Add(new(Stat.FastFall, cfg, new Unity.Mathematics.float2(0.75f, 3.25f)));
-			statsHolder.Add(new(Stat.Gravity, cfg, new Unity.Mathematics.float2(0.5f, 1.5f)));
-			statsHolder.Add(new(Stat.Luck, cfg, new Unity.Mathematics.float2(0.15f, 4.85f)));
-			statsHolder.Add(new(Stat.MaxEnergy, cfg, new Unity.Mathematics.float2(0.5f, 2.5f)));
-			statsHolder.Add(new(Stat.MaxHealth, cfg, new Unity.Mathematics.float2(0.25f, 5f)));
-			statsHolder.Add(new(Stat.PickupRange, cfg, new Unity.Mathematics.float2(0.75f, 3.75f)));
-			statsHolder.Add(new(Stat.RunSpeed, cfg, new Unity.Mathematics.float2(0.75f, 2.5f)));
-			statsHolder.Add(new(Stat.SparkMulti, cfg, new Unity.Mathematics.float2(0.5f, 1.5f)));
-			statsHolder.Add(new(Stat.TurnSpeed, cfg, new Unity.Mathematics.float2(0.5f, 2.5f)));
-		}
-	}
+    public LocalizedString GetDisplayName() =>
+        new UnlocalizedString("Max Modifiers");
 
-	public static HastyBool BossLevels { get; private set; } = null!;
-	public static HastyBool ChallengeLevels { get; private set; } = null!;
-	public static HastyFloat FailChance { get; private set; } = null!;
-	public static HastyFloat MaxEffects { get; private set; } = null!;
-	public static List<StatHolder> statsHolder { get; } = new();
+    protected override int GetDefaultValue() => 4;
+
+    public override void ApplyValue()
+    {
+        Debug.Log($"HasteEffects: Max Modifiers set to {Value}");
+    }
 }
