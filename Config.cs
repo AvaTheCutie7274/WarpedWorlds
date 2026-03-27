@@ -1,5 +1,7 @@
 ﻿namespace HasteEffects;
 
+using SettingsLib;
+
 public class Config
 {
 	public Config(HastySetting cfg)
